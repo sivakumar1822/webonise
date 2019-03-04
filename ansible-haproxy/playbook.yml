@@ -1,0 +1,71 @@
+---
+- hosts: haproxy
+  remote_user: ubuntu
+  become: true 
+  vars:
+    haproxy_app_name: myapp
+    haproxy_mode: http
+    haproxy_enable_stats: enable 
+    haproxy_algorithm: roundrobin
+    haproxy_backend_servers:
+      - {name: server1, ip: 192.168.1.50, port: 80, paramstring: cookie A check}
+      - {name: server2, ip: 192.168.1.50, port: 80, paramstring: cookie A check}
+    haproxy_stats_users:
+      - {username: joe, password: soap}
+  
+  tasks:
+    - name: Update apt cache 
+      apt: update_cache=yes cache_valid_time=3600      
+
+    - name: Install haproxy
+      apt: name=haproxy state=present
+
+    - name: Enable init script
+      replace: dest='/etc/default/haproxy' 
+            regexp='ENABLED=0'
+            replace='ENABLED=1'
+
+    - name: Update HAProxy config
+      template: src=templates/haproxy.cfg 
+            dest=/etc/haproxy/haproxy.cfg 
+            backup=yes
+      notify: 
+        - restart haproxy
+
+  handlers:
+    - name: restart haproxy
+      service: name=haproxy state=restarted
+
+# Install nginx + php -fpm 
+
+- hosts: webservers
+  remote_user: ubuntu
+  become: true
+  tasks:
+    - name: Install Nginx web server
+      apt:
+        name: nginx
+        state: latest
+    - name: Add PHP 7 PPA repository
+    - name: Install PHP CLI
+      apt:
+        name: php5-cli
+        state: latest
+    - name: Add PHP 7 PPA repository
+      apt_repository:
+        repo: 'ppa:ondrej/php'
+    - name: Install PHP CLI
+      apt:
+        name: php7.1-cli
+
+# Install mysql
+
+- hosts: dbservers
+  remote_user: ubuntu
+  become: true
+  tasks:
+    - name: Install MySQL DB server
+      apt:
+        name: mysql-server
+        state: latest
+    - name: Add PHP 7 PPA repository
